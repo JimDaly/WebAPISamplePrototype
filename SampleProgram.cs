@@ -1,12 +1,15 @@
 ﻿using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using System;
+using System.Configuration;
 
 namespace WebAPISamplePrototype
 {
-    class SampleProgram
+    public partial class SampleProgram
     {
-        static readonly string ApiUrl = "https://crmue.crm.dynamics.com"; //Get From App.Config
-        //static readonly string ApiUrl = "https://apithrottletest.crm10.dynamics.com"; //Get From App.Config        
+
+        //Get configuration data from App.config connectionStrings
+        static string connectionString = ConfigurationManager.ConnectionStrings["Connect"].ConnectionString;
+        static string ApiUrl = GetParameterValueFromConnectionString(connectionString, "Url");
 
         static void Main()
         {
@@ -14,24 +17,40 @@ namespace WebAPISamplePrototype
             {
                 using (CDSWebApiService svc = new CDSWebApiService(ApiUrl, GetAccessToken(ApiUrl)))
                 {
-                    BasicOperations.Run(svc);
-                    ConditionalOperations.Run(svc);
-                    FunctionsAndActions.Run(svc);
+                    //BasicOperations.Run(svc);
+                    //ConditionalOperations.Run(svc);
+                    //FunctionsAndActions.Run(svc);
                     //QueryData.Run(svc);
-                    //ThrottleTest.Run(svc);
+                    ServiceProtectionLimitTest.Run(svc);
                 }
 
             }
             catch (CDSWebApiException ex)
             {
+                Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"Unexpected Error:\t{ex.Message}\n" +
                     $"\tStatusCode: {ex.StatusCode}\n" +
                     $"\tReasonPhrase: {ex.ReasonPhrase}\n" +
                     $"\tErrorCode: {ex.ErrorCode}");
+                Console.ResetColor();
+            }
+            catch (AggregateException aex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.BackgroundColor = ConsoleColor.White;
+                Console.WriteLine("Unexpected Errors:\t{0}", aex.Message);
+                foreach (Exception ex in aex.InnerExceptions)
+                {
+                    Console.WriteLine($"\t{ex.GetType().Name}: {ex.Message}");
+                }
+                Console.ResetColor();
             }
             catch (Exception ex)
             {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.BackgroundColor = ConsoleColor.White;
                 Console.WriteLine("Unexpected Error:\t{0}", ex.Message);
+                Console.ResetColor();
             }
             finally {
                 Console.WriteLine("Press any key to exit");

@@ -9,6 +9,21 @@ using System.Threading.Tasks;
 
 namespace WebAPISamplePrototype
 {
+    public partial class SampleProgram {
+        public static string GetParameterValueFromConnectionString(string connectionString, string parameter)
+        {
+            try
+            {
+                return connectionString.Split(';').Where(s => s.Trim().StartsWith(parameter)).FirstOrDefault().Split('=')[1];
+            }
+            catch (Exception)
+            {
+                return string.Empty;
+            }
+
+        }
+    }
+
     public partial class FunctionsAndActions
     {
         //Centralized collection of entity URIs used to manage lifetimes
@@ -403,7 +418,9 @@ namespace WebAPISamplePrototype
                         catch (Exception ex)
                         {
                             Console.WriteLine($"Could not delete entity at {x}");
+                            Console.ForegroundColor = ConsoleColor.Red;
                             Console.WriteLine($"Unexpected Error: {ex.Message}");
+                            Console.ResetColor();
                         }
 
                     });
@@ -483,6 +500,7 @@ namespace WebAPISamplePrototype
             Console.Write("\n");
         }
 
+        
     }
 }
 

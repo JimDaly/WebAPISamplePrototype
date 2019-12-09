@@ -81,10 +81,12 @@ namespace WebAPISamplePrototype
             }
             catch (CDSWebApiException ex)
             {
+                Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine($"Expected Error: {ex.Message}\n" +
                     $"\tAccount not deleted using the initial ETag value: {initialAcctETagVal}\n" +
                     $"\tStatusCode: {ex.StatusCode}\n" +
                     $"\tReasonPhrase: {ex.ReasonPhrase}");
+                Console.ResetColor();
             }
 
             //Attempt to update account (if matches original ETag value).
@@ -101,10 +103,12 @@ namespace WebAPISamplePrototype
             }
             catch (CDSWebApiException ex)
             {
+                Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine($"Expected Error: {ex.Message}\n" +
                 $"\tAccount not updated using the initial ETag value: {initialAcctETagVal}\n" +
                 $"\tStatusCode: {ex.StatusCode}\n" +
                 $"\tReasonPhrase: {ex.ReasonPhrase}");
+                Console.ResetColor();
             }
 
             //Get current ETag value:
@@ -143,10 +147,12 @@ namespace WebAPISamplePrototype
             }
             catch (CDSWebApiException ex)
             {
+                Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine($"Expected Error: {ex.Message}\n" +
                 $"\tAccount not updated because it does not exist.\n" +
                 $"\tStatusCode: {ex.StatusCode}\n" +
                 $"\tReasonPhrase: {ex.ReasonPhrase}");
+                Console.ResetColor();
             }
             //Attempt to upsert to re-create the record that was deleted 
             // as long as there are no existing account records with the same id.

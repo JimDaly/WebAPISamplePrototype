@@ -20,6 +20,7 @@ namespace WebAPISamplePrototype
         public Uri BaseAddress { get; private set; }
         private const int MaxRetries = 3;
         private const bool DisableCookies = false;
+        private const double TimeoutInSeconds = 60;
 
 
         /// <summary>
@@ -72,7 +73,7 @@ namespace WebAPISamplePrototype
 
             Client.DefaultRequestHeaders.Authorization =
               new AuthenticationHeaderValue("Bearer", AccessToken);
-            Client.Timeout = new TimeSpan(0, 5, 0);
+            Client.Timeout = TimeSpan.FromSeconds(TimeoutInSeconds);
             Client.DefaultRequestHeaders.Add("OData-MaxVersion", "4.0");
             Client.DefaultRequestHeaders.Add("OData-Version", "4.0");
             Client.DefaultRequestHeaders.Accept.Add(
@@ -256,7 +257,7 @@ namespace WebAPISamplePrototype
         private HttpResponseMessage Send(HttpRequestMessage request, HttpCompletionOption httpCompletionOption = HttpCompletionOption.ResponseHeadersRead, int retryCount = 0)
         {
 
-            //Sending a copy of the request because if it fails the Content will be disposed and can't be sent again
+            //Sending a copy of the request because if it fails the Content will be disposed and can't be sent again.
             HttpResponseMessage response;
             using (var requestCopy = request.Clone())
             {
@@ -296,7 +297,7 @@ namespace WebAPISamplePrototype
                     else
                     {
                         seconds = (int)Math.Pow(2, retryCount);
-                        //Console.WriteLine($"Waiting for: {seconds} seconds based on exponential backoff.");
+                        Console.WriteLine($"Waiting for: {seconds} seconds based on exponential backoff.");
                     }
                     Thread.Sleep(TimeSpan.FromSeconds(seconds));
 

@@ -153,10 +153,12 @@ namespace WebAPISamplePrototype
             }
             catch (CDSWebApiException ex)
             {
+                Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine($"Expected Error:\t{ex.Message}\n" +
                 $"\tStatusCode: {ex.StatusCode}\n" +
                 $"\tReasonPhrase: {ex.ReasonPhrase}\n" +
                 $"\tErrorCode: {ex.ErrorCode}");
+                Console.ResetColor();
             }
 
             #endregion Call an unbound custom action that requires parameters.
