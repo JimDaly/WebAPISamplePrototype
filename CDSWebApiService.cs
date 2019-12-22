@@ -254,6 +254,7 @@ namespace WebAPISamplePrototype
         //All public methods use this
         //It includes re-try logic for Service Protection API limits
         //TODO: Add Delegating Handler to manage accessToken refresh
+        
         private HttpResponseMessage Send(HttpRequestMessage request, HttpCompletionOption httpCompletionOption = HttpCompletionOption.ResponseHeadersRead, int retryCount = 0)
         {
 

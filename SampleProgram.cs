@@ -21,7 +21,8 @@ namespace WebAPISamplePrototype
                     //ConditionalOperations.Run(svc);
                     //FunctionsAndActions.Run(svc);
                     //QueryData.Run(svc);
-                    ServiceProtectionLimitTest.Run(svc);
+                    //ServiceProtectionLimitTest.Run(svc);
+                    QueryExpressionQuery.Run(svc);
                 }
 
             }
@@ -60,7 +61,7 @@ namespace WebAPISamplePrototype
         }
 
 
-
+        //TODO: Enable Username and password to be passed through from app.config
         internal static string GetAccessToken(string AppUrl)
         {
 

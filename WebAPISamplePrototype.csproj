@@ -94,6 +94,22 @@
     <Compile Include="Extensions.cs" />
     <Compile Include="FunctionsAndActions.cs" />
     <Compile Include="QueryData.cs" />
+    <Compile Include="QueryExpressionQuery.cs" />
+    <Compile Include="QueryExpressionTypes\ColumnSet.cs" />
+    <Compile Include="QueryExpressionTypes\ConditionExpression.cs" />
+    <Compile Include="QueryExpressionTypes\ConditionOperator.cs" />
+    <Compile Include="QueryExpressionTypes\DataCollection.cs" />
+    <Compile Include="QueryExpressionTypes\FilterExpression.cs" />
+    <Compile Include="QueryExpressionTypes\JoinOperator.cs" />
+    <Compile Include="QueryExpressionTypes\LinkEntity.cs" />
+    <Compile Include="QueryExpressionTypes\LogicalOperator.cs" />
+    <Compile Include="QueryExpressionTypes\OrderExpression.cs" />
+    <Compile Include="QueryExpressionTypes\OrderType.cs" />
+    <Compile Include="QueryExpressionTypes\PagingInfo.cs" />
+    <Compile Include="QueryExpressionTypes\QueryExpression.cs" />
+    <Compile Include="QueryExpressionTypes\XrmAggregateType.cs" />
+    <Compile Include="QueryExpressionTypes\XrmAttributeExpression.cs" />
+    <Compile Include="QueryExpressionTypes\XrmDateTimeGrouping.cs" />
     <Compile Include="SampleMethods.cs" />
     <Compile Include="SampleProgram.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -107,5 +123,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
