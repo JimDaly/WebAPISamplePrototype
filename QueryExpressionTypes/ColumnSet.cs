@@ -35,10 +35,10 @@ namespace WebAPISamplePrototype.QueryExpressionTypes
             Columns.Add(column);
         }
 
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        
         public bool AllColumns { get; set; }
 
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        
         public DataCollection<string> Columns
         {
             get
@@ -50,7 +50,8 @@ namespace WebAPISamplePrototype.QueryExpressionTypes
                 return _columns;
             }
         }
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+
+        
         public DataCollection<XrmAttributeExpression> AttributeExpressions
         {
             get
@@ -68,7 +69,6 @@ namespace WebAPISamplePrototype.QueryExpressionTypes
         /// when large files are not routed to plugins.
         /// </summary>
         /// <returns>True if the entity has a lazy file attribute, otherwise false.</returns>
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public bool HasLazyFileAttribute { get; set; }
 
         /// <summary>

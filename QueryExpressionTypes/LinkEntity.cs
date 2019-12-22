@@ -20,18 +20,25 @@ namespace WebAPISamplePrototype.QueryExpressionTypes
             _columns = new ColumnSet();
             LinkCriteria = new FilterExpression();
         }
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public string LinkFromAttributeName { get; set; }
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public string LinkFromEntityName { get; set; }
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public string LinkToEntityName { get; set; }
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public string LinkToAttributeName { get; set; }
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public JoinOperator JoinOperator { get; set; }
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public FilterExpression LinkCriteria { get; set; }
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public DataCollection<LinkEntity> LinkEntities
         {
@@ -49,6 +56,7 @@ namespace WebAPISamplePrototype.QueryExpressionTypes
                 _linkEntities = value;
             }
         }
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public ColumnSet Columns
         {
@@ -65,6 +73,7 @@ namespace WebAPISamplePrototype.QueryExpressionTypes
                 _columns = value;
             }
         }
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public string EntityAlias { get; set; }
 
@@ -86,6 +95,7 @@ namespace WebAPISamplePrototype.QueryExpressionTypes
 
             return link;
         }
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public DataCollection<OrderExpression> Orders
         {

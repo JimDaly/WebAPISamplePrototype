@@ -18,14 +18,17 @@ namespace WebAPISamplePrototype.QueryExpressionTypes
             PageInfo = new PagingInfo();
             ColumnSet = new ColumnSet();
         }
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+
         public bool Distinct { get; set; }
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+
         public bool NoLock { get; set; }
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public PagingInfo PageInfo { get; set; }
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public string QueryHints { get; set; }
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public DataCollection<LinkEntity> LinkEntities
         {
@@ -42,8 +45,10 @@ namespace WebAPISamplePrototype.QueryExpressionTypes
                 _linkEntities = value;
             }
         }
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public FilterExpression Criteria { get; set; }
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public DataCollection<OrderExpression> Orders
         {
@@ -60,12 +65,13 @@ namespace WebAPISamplePrototype.QueryExpressionTypes
                 _orders = value;
             }
         }
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public string EntityName { get; set; }
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        public string EntitySetName { get; set; }
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public ColumnSet ColumnSet { get; set; }
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public int? TopCount { get; set; }
 

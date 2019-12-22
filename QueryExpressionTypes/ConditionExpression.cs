@@ -93,10 +93,13 @@ namespace WebAPISamplePrototype.QueryExpressionTypes
         /// </summary>
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public string EntityName { get; set; } = null;
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public string AttributeName { get; set; }
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public ConditionOperator Operator { get; set; }
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public DataCollection<object> Values
         {

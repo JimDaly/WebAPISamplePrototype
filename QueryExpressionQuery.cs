@@ -12,7 +12,7 @@ namespace WebAPISamplePrototype
 
             var qe = new QueryExpression("account")
             {
-                //EntitySetName = "accounts",
+                
                 ColumnSet = new ColumnSet("name"),
                 PageInfo = new PagingInfo { Count = 3, PageNumber = 1 },
                 Criteria = new FilterExpression(LogicalOperator.And)

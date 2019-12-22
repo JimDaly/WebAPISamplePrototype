@@ -1,4 +1,6 @@
-﻿namespace WebAPISamplePrototype.QueryExpressionTypes
+﻿using Newtonsoft.Json;
+
+namespace WebAPISamplePrototype.QueryExpressionTypes
 {
     public sealed class XrmAttributeExpression
     {
@@ -32,14 +34,18 @@
             DateTimeGrouping = dateTimeGrouping;
         }
 
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public string AttributeName { get; set; }
 
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public XrmAggregateType AggregateType { get; set; }
 
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public string Alias { get; set; } = null;
 
         public bool HasGroupBy { get; set; } = false;
 
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public XrmDateTimeGrouping DateTimeGrouping { get; set; }
     }
 }

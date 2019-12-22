@@ -19,7 +19,6 @@ namespace WebAPISamplePrototype.QueryExpressionTypes
         /// <summary>
         /// If total record count across all pages is required
         /// </summary>
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public bool ReturnTotalRecordCount { get; set; }
 
         /// <summary>

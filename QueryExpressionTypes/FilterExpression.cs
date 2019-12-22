@@ -18,8 +18,9 @@ namespace WebAPISamplePrototype.QueryExpressionTypes
         /// <summary>
         /// Filter hint
         /// </summary>
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] 
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public string FilterHint { get; set; }
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public DataCollection<ConditionExpression> Conditions
         {
@@ -37,6 +38,7 @@ namespace WebAPISamplePrototype.QueryExpressionTypes
                 _conditions = value;
             }
         }
+
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public DataCollection<FilterExpression> Filters
         {
@@ -54,7 +56,7 @@ namespace WebAPISamplePrototype.QueryExpressionTypes
                 _filters = value;
             }
         }
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+
         public bool IsQuickFindFilter { get; set; } = false;
 
         /// <summary>
