@@ -3,9 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace WebAPISamplePrototype
 {
@@ -14,7 +12,11 @@ namespace WebAPISamplePrototype
         {
             try
             {
-                return connectionString.Split(';').Where(s => s.Trim().StartsWith(parameter)).FirstOrDefault().Split('=')[1];
+                string value = connectionString.Split(';').Where(s => s.Trim().StartsWith(parameter)).FirstOrDefault().Split('=')[1];
+                if (value.ToLower() == "null") {
+                    return string.Empty;
+                }
+                return value;
             }
             catch (Exception)
             {

@@ -9,7 +9,7 @@ namespace WebAPISamplePrototype
     /// </summary>
     public static class Extensions
     {
-        //Based on https://stackoverflow.com/questions/18000583/re-send-httprequestmessage-exception/18014515
+
         /// <summary>
         /// Clones a HttpRequestMessage instance
         /// </summary>
