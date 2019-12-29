@@ -1,10 +1,7 @@
 ﻿using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace WebAPISamplePrototype
 {
@@ -12,9 +9,9 @@ namespace WebAPISamplePrototype
     {
 
 
-        public static void Run(CDSWebApiService svc)
+        public static void Run(CDSWebApiService svc, bool deleteCreatedRecords)
         {
-
+            Console.WriteLine("\n--Starting Query Data --");
             CreateRequiredRecords(svc);
 
             #region Selecting specific properties
@@ -321,7 +318,9 @@ namespace WebAPISamplePrototype
 
             #endregion Using predefined queries
 
-            DeleteRequiredRecords(svc,prompt);
+            DeleteRequiredRecords(svc, deleteCreatedRecords);
+
+            Console.WriteLine("\n--Query Data Completed--");
         }
     }
 }

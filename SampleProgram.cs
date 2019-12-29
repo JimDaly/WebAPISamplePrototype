@@ -1,5 +1,4 @@
-﻿using Microsoft.IdentityModel.Clients.ActiveDirectory;
-using System;
+﻿using System;
 using System.Configuration;
 
 namespace WebAPISamplePrototype
@@ -9,15 +8,15 @@ namespace WebAPISamplePrototype
         //Get configuration data from App.config connectionStrings
         private static readonly string connectionString = ConfigurationManager.ConnectionStrings["Connect"].ConnectionString;
 
-        private static readonly string Url = GetParameterValueFromConnectionString(connectionString, "Url");
-        private static readonly string ClientId = GetParameterValueFromConnectionString(connectionString, "ClientId");
-        private static readonly string RedirectUrl = GetParameterValueFromConnectionString(connectionString, "RedirectUrl");
-        private static readonly string Username = GetParameterValueFromConnectionString(connectionString, "Username");
-        private static readonly string Password = GetParameterValueFromConnectionString(connectionString, "Password");
-        private static readonly string CallerObjectId = GetParameterValueFromConnectionString(connectionString, "CallerObjectId");
-        private static readonly string Version = GetParameterValueFromConnectionString(connectionString, "Version");
-        private static readonly int MaxRetries = int.Parse(GetParameterValueFromConnectionString(connectionString, "MaxRetries"));
-        private static readonly double TimeoutInSeconds = double.Parse(GetParameterValueFromConnectionString(connectionString, "TimeoutInSeconds"));
+        private static readonly string url = GetParameterValueFromConnectionString(connectionString, "Url");
+        private static readonly string clientId = GetParameterValueFromConnectionString(connectionString, "ClientId");
+        private static readonly string redirectUrl = GetParameterValueFromConnectionString(connectionString, "RedirectUrl");
+        private static readonly string userPrincipalName = GetParameterValueFromConnectionString(connectionString, "UserPrincipalName");
+        private static readonly string password = GetParameterValueFromConnectionString(connectionString, "Password");
+        private static readonly string callerObjectId = GetParameterValueFromConnectionString(connectionString, "CallerObjectId");
+        private static readonly string version = GetParameterValueFromConnectionString(connectionString, "Version");
+        private static readonly int maxRetries = int.Parse(GetParameterValueFromConnectionString(connectionString, "MaxRetries"));
+        private static readonly double timeoutInSeconds = double.Parse(GetParameterValueFromConnectionString(connectionString, "TimeoutInSeconds"));
 
 
 
@@ -25,22 +24,24 @@ namespace WebAPISamplePrototype
         {
             try
             {
-                using (CDSWebApiService svc = new CDSWebApiService(Url,
-                    ClientId,
-                    RedirectUrl,
-                    Username,
-                    Password,
-                    CallerObjectId,
-                    Version,
-                    MaxRetries,
-                    TimeoutInSeconds))
+                using (CDSWebApiService svc = new CDSWebApiService(
+                    url,
+                    clientId,
+                    redirectUrl,
+                    userPrincipalName,
+                    password,
+                    callerObjectId,
+                    version,
+                    maxRetries,
+                    timeoutInSeconds))
                 {
-                    BasicOperations.Run(svc);
-                    //ConditionalOperations.Run(svc);
-                    //FunctionsAndActions.Run(svc);
-                    //QueryData.Run(svc);
-                    //ServiceProtectionLimitTest.Run(svc);
-                    //QueryExpressionQuery.Run(svc);
+                    BasicOperations.Run(svc, true);
+                    ConditionalOperations.Run(svc);
+                    FunctionsAndActions.Run(svc);
+                    QueryData.Run(svc,true);
+                   // QueryExpressionQuery.Run(svc);
+                    // ServiceProtectionLimitTest.Run(svc);
+
                 }
             }
             catch (CDSWebApiException ex)

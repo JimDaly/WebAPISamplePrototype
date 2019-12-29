@@ -10,6 +10,8 @@ namespace WebAPISamplePrototype
 
         public static void Run(CDSWebApiService svc)
         {
+            Console.WriteLine("\t--Starting Conditional Operations--");
+
             /// <summary> Creates the CRM entity instance used by this sample. </summary>
             #region Create sample Account record
             // Create a CRM account record.
@@ -130,6 +132,30 @@ namespace WebAPISamplePrototype
             // Delete the account record
             svc.Delete(accountUri);
             Console.WriteLine("Account Deleted.");
+
+            //Verify that it now longer exists
+            try
+            {
+                svc.Get($"{accountUri}?$select=name,revenue,telephone1,description");
+            }
+            catch (CDSWebApiException ex)
+            {
+                if (ex.StatusCode.Equals(404))
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"Expected Error: {ex.Message}\n" +
+                    $"\tVerified that Account does not exist.\n" +
+                    $"\tStatusCode: {ex.StatusCode}\n" +
+                    $"\tReasonPhrase: {ex.ReasonPhrase}");
+                    Console.ResetColor();
+                }
+                else
+                {
+                    throw ex;
+                }
+            }
+
+
             #endregion Optimistic concurrency on delete and update
 
             #region Controlling upsert operations
@@ -165,8 +191,30 @@ namespace WebAPISamplePrototype
             account.Remove("_transactioncurrencyid_value");
 
             svc.Patch(accountUri, account, IfNoneMatchAnyHeader);
-
             Console.WriteLine("Account upserted.");
+
+            //Verify that it now exists again with same id
+            try
+            {
+                svc.Get($"{accountUri}?$select=name");
+                Console.WriteLine($"Verified that account with accountid '{account["accountid"]}' exists.");
+            }
+            catch (CDSWebApiException ex)
+            {
+                if (ex.StatusCode.Equals(404))
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"Unexpected Error: {ex.Message}\n" +
+                    $"\tThe account does not exist.\n" +
+                    $"\tStatusCode: {ex.StatusCode}\n" +
+                    $"\tReasonPhrase: {ex.ReasonPhrase}");
+                    Console.ResetColor();
+                }
+                else
+                {
+                    throw ex;
+                }
+            }
 
             #endregion Controlling upsert operations
 
@@ -175,6 +223,7 @@ namespace WebAPISamplePrototype
             svc.Delete(accountUri);
             #endregion Clean-up
 
+            Console.WriteLine("\t--Conditional Operations Completed--");
         }
     }
 }
