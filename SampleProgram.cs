@@ -1,30 +1,48 @@
-﻿using Microsoft.IdentityModel.Clients.ActiveDirectory;
-using System;
+﻿using System;
 using System.Configuration;
 
 namespace WebAPISamplePrototype
 {
     public partial class SampleProgram
     {
-
         //Get configuration data from App.config connectionStrings
-        static string connectionString = ConfigurationManager.ConnectionStrings["Connect"].ConnectionString;
-        static string ApiUrl = GetParameterValueFromConnectionString(connectionString, "Url");
+        private static readonly string connectionString = ConfigurationManager.ConnectionStrings["Connect"].ConnectionString;
 
-        static void Main()
+        private static readonly string url = GetParameterValueFromConnectionString(connectionString, "Url");
+        private static readonly string clientId = GetParameterValueFromConnectionString(connectionString, "ClientId");
+        private static readonly string redirectUrl = GetParameterValueFromConnectionString(connectionString, "RedirectUrl");
+        private static readonly string userPrincipalName = GetParameterValueFromConnectionString(connectionString, "UserPrincipalName");
+        private static readonly string password = GetParameterValueFromConnectionString(connectionString, "Password");
+        private static readonly string callerObjectId = GetParameterValueFromConnectionString(connectionString, "CallerObjectId");
+        private static readonly string version = GetParameterValueFromConnectionString(connectionString, "Version");
+        private static readonly int maxRetries = int.Parse(GetParameterValueFromConnectionString(connectionString, "MaxRetries"));
+        private static readonly double timeoutInSeconds = double.Parse(GetParameterValueFromConnectionString(connectionString, "TimeoutInSeconds"));
+
+
+
+        private static void Main()
         {
             try
             {
-                using (CDSWebApiService svc = new CDSWebApiService(ApiUrl, GetAccessToken(ApiUrl)))
+                using (CDSWebApiService svc = new CDSWebApiService(
+                    url,
+                    clientId,
+                    redirectUrl,
+                    userPrincipalName,
+                    password,
+                    callerObjectId,
+                    version,
+                    maxRetries,
+                    timeoutInSeconds))
                 {
-                    //BasicOperations.Run(svc);
-                    //ConditionalOperations.Run(svc);
-                    //FunctionsAndActions.Run(svc);
-                    //QueryData.Run(svc);
-                    //ServiceProtectionLimitTest.Run(svc);
-                    QueryExpressionQuery.Run(svc);
-                }
+                    BasicOperations.Run(svc, true);
+                    ConditionalOperations.Run(svc);
+                    FunctionsAndActions.Run(svc);
+                    QueryData.Run(svc,true);
+                   // QueryExpressionQuery.Run(svc);
+                    // ServiceProtectionLimitTest.Run(svc);
 
+                }
             }
             catch (CDSWebApiException ex)
             {
@@ -43,6 +61,11 @@ namespace WebAPISamplePrototype
                 foreach (Exception ex in aex.InnerExceptions)
                 {
                     Console.WriteLine($"\t{ex.GetType().Name}: {ex.Message}");
+
+                    if (ex.InnerException != null) {
+                        Console.WriteLine($"\t\t{ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
+                    }
+
                 }
                 Console.ResetColor();
             }
@@ -53,44 +76,11 @@ namespace WebAPISamplePrototype
                 Console.WriteLine("Unexpected Error:\t{0}", ex.Message);
                 Console.ResetColor();
             }
-            finally {
+            finally
+            {
                 Console.WriteLine("Press any key to exit");
                 Console.ReadLine();
             }
-
-        }
-
-
-        //TODO: Enable Username and password to be passed through from app.config
-        internal static string GetAccessToken(string AppUrl)
-        {
-
-            //This ClientId and RedirectUri are the ones shipped with sample code and are pre-approved for all CDS & Dyn365 CE environments
-            string ClientId = "51f81489-12ee-4a9e-aaae-a2591f45987d";
-            var RedirectUri = new Uri("app://58145B91-0C36-4500-8554-080854F2AC97");
-            string Authority = "https://login.microsoftonline.com/common";
-
-            //Standard ADAL Connection code
-            var Context = new AuthenticationContext(Authority, false);
-
-            AuthenticationResult AuthResult;
-            //In .NET Framework solution will display the ADAL prompt window each time you run.
-            try
-            {
-                 AuthResult = Context.AcquireTokenAsync(AppUrl,
-                  ClientId,
-                  RedirectUri,
-                  new PlatformParameters(PromptBehavior.SelectAccount),
-                  UserIdentifier.AnyUser)
-                  .Result;
-            }
-            catch (Exception)
-            {
-                throw new Exception("The user closed the Sign-in dialog.");
-            }
-
-
-            return AuthResult.AccessToken;
         }
     }
 }

@@ -9,7 +9,7 @@ namespace WebAPISamplePrototype
         //List of Uris for records created in this sample
         static readonly List<Uri> entityUris = new List<Uri>();
 
-        public static void Run(CDSWebApiService svc)
+        public static void Run(CDSWebApiService svc, bool deleteCreatedRecords)
         {
             Console.WriteLine("--Starting Basic Operations--");
 
@@ -288,15 +288,25 @@ namespace WebAPISamplePrototype
             Console.WriteLine("\n--Section 5 started--");
             //Delete all the created sample entities.  Note that explicit deletion is not required  
             // for contact tasks because these are automatically cascade-deleted with owner.  
-            Console.Write("\nDo you want these entity records deleted? (y/n) [y]: ");
-            String answer = Console.ReadLine();
-            answer = answer.Trim();
-            if (!(answer.StartsWith("y") || answer.StartsWith("Y") || answer == String.Empty))
-            { entityUris.Clear(); }
+
+            if (!deleteCreatedRecords) {
+                Console.Write("\nDo you want these entity records deleted? (y/n) [y]: ");
+                String answer = Console.ReadLine();
+                answer = answer.Trim();
+                if (!(answer.StartsWith("y") || answer.StartsWith("Y") || answer == string.Empty))
+                { entityUris.Clear(); }
+                else
+                {
+                    Console.WriteLine("\nDeleting created records.");
+                }
+            }
+            else
+            {
+                Console.WriteLine("\nDeleting created records.");
+            }
 
             foreach (Uri entityUrl in entityUris)
             {
-
                 svc.Delete(entityUrl);
             }
             #endregion Section 5: Delete sample entities

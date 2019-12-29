@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Microsoft.IdentityModel.Clients.ActiveDirectory;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,85 +7,80 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace WebAPISamplePrototype
 {
     public class CDSWebApiService : IDisposable
     {
-
-        public HttpClient Client;
-        private readonly string ApiUrl;
-        private readonly string AccessToken;
-        private readonly string Version;
-        private readonly string CallerObjectId;
-        public Uri BaseAddress { get; private set; }
-        private const int MaxRetries = 3;
-        private const bool DisableCookies = false;
-        private const double TimeoutInSeconds = 60;
-
-
+        private HttpClient httpClient;
+        private readonly string url;
+        private readonly string clientId;
+        private readonly string redirectUrl;
+        private readonly string userPrincipalName;
+        private readonly string password;
+        private readonly string callerObjectId;
+        private readonly string version;
+        private readonly int maxRetries;
+        private readonly double timeoutInSeconds;
         /// <summary>
-        /// Initializes the CDSWebApiService class with information needed to connect to the service
+        /// The BaseAddresss property of the HttpClient.
         /// </summary>
-        /// <param name="apiUrl">The URL to access the service.</param>
-        /// <param name="accessToken">The AccessToken to use to connect to the service</param>
-        /// <param name="version">The version of the service to use</param>
-        public CDSWebApiService(string apiUrl, string accessToken, string version = "9.1")
-        {
-            ApiUrl = apiUrl;
-            AccessToken = accessToken;
-            Version = version;
-            Init();
-
-        }
+        public Uri BaseAddress { get { return httpClient.BaseAddress; } }
         /// <summary>
-        /// Initializes the CDSWebApiService class with information needed to connect to the service
+        /// Constructor for the CDSWebApiService
         /// </summary>
-        /// <param name="apiUrl">The URL to access the service.</param>
-        /// <param name="accessToken">The AccessToken to use to connect to the service</param>
-        /// <param name="callerObjectId">The Azure Active Directory object id of the user to impersonate.</param>
-        /// <param name="version">The version of the service to use</param>
-        public CDSWebApiService(string apiUrl, string accessToken, string callerObjectId, string version = "9.1")
+        /// <param name="url">The URL for the CDS instance</param>
+        /// <param name="clientId">The clientId for Active Directory registered application.</param>
+        /// <param name="redirectUrl">The redirectUrl for Active Directory registered application.</param>
+        /// <param name="userPrincipalName">(Optional) The User Principal Name of the user.</param>
+        /// <param name="password">(Optional) The user's password.</param>
+        /// <param name="callerObjectId">(Optional) The Active Directory ObjectId of the of the calling user who will act on behalf of the user.</param>
+        /// <param name="version">(Optional) The CDS Web API version. Defaults to 9.1. </param>
+        /// <param name="maxRetries">(Optional) The number of retry attempts for re-tryable errors. Defaults to 3.</param>
+        /// <param name="timeoutInSeconds">(Optional) The period where a non-reponsive HTTP request will be cancelled. Defaults to 180.</param>
+        public CDSWebApiService(string url, 
+            string clientId, 
+            string redirectUrl, 
+            string userPrincipalName = null, 
+            string password = null, 
+            string callerObjectId = null, 
+            string version = "9.1",
+            int maxRetries = 3,
+            double timeoutInSeconds = 180)
         {
-            ApiUrl = apiUrl;
-            AccessToken = accessToken;
-            Version = version;
-            CallerObjectId = callerObjectId;
+            this.url = url;
+            this.clientId = clientId;
+            this.redirectUrl = redirectUrl;
+            this.userPrincipalName = userPrincipalName;
+            this.password = password;
+            this.callerObjectId = callerObjectId;
+            this.version = version;
+            this.maxRetries = maxRetries;
+            this.timeoutInSeconds = timeoutInSeconds;
             Init();
-
         }
 
         private void Init()
         {
-            //Handler enables disabling cookies
-            // The ARRAffinity cookie specifies a particular server
-            // Strategy for optimizing throughput is to ignore this since the Service Protection limits are applied per web server.
-            // But I see no immediate improvement by doing this.
-            WebRequestHandler handler = new WebRequestHandler
+            HttpMessageHandler messageHandler = new OAuthMessageHandler(url, clientId, redirectUrl, userPrincipalName, password,
+                           new HttpClientHandler());
+            httpClient = new HttpClient(messageHandler)
             {
-                CookieContainer = new CookieContainer(),
-                UseCookies = !DisableCookies
+                BaseAddress = new Uri(url + $"/api/data/v{version}/")
             };
-            Client = new HttpClient(handler)
-            {
-                BaseAddress = new Uri(ApiUrl + $"/api/data/v{Version}/")
-            };
-            BaseAddress = Client.BaseAddress;
 
-            Client.DefaultRequestHeaders.Authorization =
-              new AuthenticationHeaderValue("Bearer", AccessToken);
-            Client.Timeout = TimeSpan.FromSeconds(TimeoutInSeconds);
-            Client.DefaultRequestHeaders.Add("OData-MaxVersion", "4.0");
-            Client.DefaultRequestHeaders.Add("OData-Version", "4.0");
-            Client.DefaultRequestHeaders.Accept.Add(
+            httpClient.Timeout = TimeSpan.FromSeconds(timeoutInSeconds);
+            httpClient.DefaultRequestHeaders.Add("OData-MaxVersion", "4.0");
+            httpClient.DefaultRequestHeaders.Add("OData-Version", "4.0");
+            httpClient.DefaultRequestHeaders.Accept.Add(
                 new MediaTypeWithQualityHeaderValue("application/json"));
-            if (CallerObjectId != string.Empty)
+            if (callerObjectId != string.Empty)
             {
-                Client.DefaultRequestHeaders.Add("CallerObjectId", CallerObjectId);
+                httpClient.DefaultRequestHeaders.Add("CallerObjectId", callerObjectId);
             }
-            
-
         }
+
         /// <summary>
         /// Creates an entity record.
         /// </summary>
@@ -95,41 +91,41 @@ namespace WebAPISamplePrototype
         {
             try
             {
-                
-                using (var message = new HttpRequestMessage(HttpMethod.Post, entitySetName)) {
+                using (var message = new HttpRequestMessage(HttpMethod.Post, entitySetName))
+                {
                     message.Content = new StringContent(body.ToString());
                     message.Content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/json");
                     HttpResponseMessage response = Send(message);
                     return new Uri(response.Headers.GetValues("OData-EntityId").FirstOrDefault());
                 }
-
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                throw;
+                throw ex;
             }
         }
+
         /// <summary>
         /// Posts data to a Uri
         /// </summary>
         /// <param name="uri">The Uri to post the data to</param>
         /// <param name="body">The JObject containing the data to post.</param>
-        public JObject Post(string path, JObject body)
+        public JObject Post(string path, JObject body, Dictionary<string, List<string>> headers = null)
         {
             try
             {
-
-                using (var message = new HttpRequestMessage(HttpMethod.Post, path)) {
+                using (var message = new HttpRequestMessage(HttpMethod.Post, path))
+                {
                     message.Content = new StringContent(body.ToString());
                     message.Content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/json");
                     HttpResponseMessage response = Send(message);
                     string content = response.Content.ReadAsStringAsync().Result;
-                    if (string.IsNullOrEmpty(content)) {
+                    if (string.IsNullOrEmpty(content))
+                    {
                         return null;
                     }
                     return JObject.Parse(content);
                 }
-
             }
             catch (Exception)
             {
@@ -147,34 +143,31 @@ namespace WebAPISamplePrototype
         {
             try
             {
-
-                using (var message = new HttpRequestMessage(HttpMethod.Get, path)) {
-
+                using (var message = new HttpRequestMessage(HttpMethod.Get, path))
+                {
                     if (headers != null)
                     {
                         foreach (KeyValuePair<string, List<string>> header in headers)
                         {
                             message.Headers.Add(header.Key, header.Value);
                         }
-
                     }
 
                     HttpResponseMessage response = Send(message, HttpCompletionOption.ResponseContentRead);
 
-                    if (response.StatusCode != HttpStatusCode.NotModified) {
+                    if (response.StatusCode != HttpStatusCode.NotModified)
+                    {
                         return JToken.Parse(response.Content.ReadAsStringAsync().Result);
-
                     }
                     return null;
-                   
                 }
             }
             catch (Exception)
             {
                 throw;
             }
-
         }
+
         /// <summary>
         /// Sends a PATCH request
         /// </summary>
@@ -182,8 +175,8 @@ namespace WebAPISamplePrototype
         /// <param name="body">The JObject containing the data to post.</param>
         public void Patch(Uri uri, JObject body, Dictionary<string, List<string>> headers = null)
         {
-
-            using (var message = new HttpRequestMessage(new HttpMethod("PATCH"), uri)) {
+            using (var message = new HttpRequestMessage(new HttpMethod("PATCH"), uri))
+            {
                 message.Content = new StringContent(body.ToString());
                 message.Content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/json");
                 if (headers != null)
@@ -192,12 +185,11 @@ namespace WebAPISamplePrototype
                     {
                         message.Headers.Add(header.Key, header.Value);
                     }
-
                 }
                 Send(message);
             }
-
         }
+
         /// <summary>
         /// Sends a Delete operation
         /// </summary>
@@ -206,8 +198,8 @@ namespace WebAPISamplePrototype
         {
             try
             {
-                using (var message = new HttpRequestMessage(HttpMethod.Delete, uri)) {
-
+                using (var message = new HttpRequestMessage(HttpMethod.Delete, uri))
+                {
                     if (headers != null)
                     {
                         foreach (KeyValuePair<string, List<string>> header in headers)
@@ -235,7 +227,8 @@ namespace WebAPISamplePrototype
         {
             try
             {
-                using (var message = new HttpRequestMessage(HttpMethod.Put, $"{uri}/{property}")) {
+                using (var message = new HttpRequestMessage(HttpMethod.Put, $"{uri}/{property}"))
+                {
                     var body = new JObject
                     {
                         ["value"] = value
@@ -251,21 +244,25 @@ namespace WebAPISamplePrototype
             }
         }
 
-        //All public methods use this
+        //All public methods use this private method;
         //It includes re-try logic for Service Protection API limits
-        //TODO: Add Delegating Handler to manage accessToken refresh
-        
+
         private HttpResponseMessage Send(HttpRequestMessage request, HttpCompletionOption httpCompletionOption = HttpCompletionOption.ResponseHeadersRead, int retryCount = 0)
         {
-
             //Sending a copy of the request because if it fails the Content will be disposed and can't be sent again.
             HttpResponseMessage response;
             using (var requestCopy = request.Clone())
             {
-                
-                response = Client.SendAsync(requestCopy, httpCompletionOption).Result;
-            }
+                try
+                {
+                    response = httpClient.SendAsync(requestCopy, httpCompletionOption).Result;
+                }
+                catch (Exception ex)
+                {
 
+                    throw ex;
+                }                
+            }
 
             if (!response.IsSuccessStatusCode)
             {
@@ -282,9 +279,8 @@ namespace WebAPISamplePrototype
                 }
                 else
                 {
-
                     // Give up re-trying if exceeding the maxRetries
-                    if (++retryCount >= MaxRetries)
+                    if (++retryCount >= maxRetries)
                     {
                         throw ParseError(response);
                     }
@@ -303,21 +299,12 @@ namespace WebAPISamplePrototype
                     Thread.Sleep(TimeSpan.FromSeconds(seconds));
 
                     return Send(request, httpCompletionOption, retryCount);
-
-
                 }
             }
             else
             {
-
-                //int burstRemaining = int.Parse(response.Headers.GetValues("x-ms-ratelimit-burst-remaining-xrm-requests").FirstOrDefault());
-                //Console.WriteLine($"Burst Remaining {burstRemaining}");
-
-
                 return response;
-
             }
-
         }
 
         private Exception ParseError(HttpResponseMessage response)
@@ -331,13 +318,11 @@ namespace WebAPISamplePrototype
                 string reasonPhrase = response.ReasonPhrase;
 
                 return new CDSWebApiException(code, statusCode, reasonPhrase, message);
-
             }
             catch (Exception)
             {
                 throw;
             }
-
         }
 
         ~CDSWebApiService()
@@ -351,16 +336,15 @@ namespace WebAPISamplePrototype
 
             GC.SuppressFinalize(this);
         }
+
         protected virtual void Dispose(bool disposing)
         {
             if (disposing == true)
             {
-
                 ReleaseClient();
             }
             else
             {
-
             }
 
             ReleaseClient();
@@ -368,16 +352,70 @@ namespace WebAPISamplePrototype
 
         private void ReleaseClient()
         {
-            if (Client != null)
+            if (httpClient != null)
             {
-                Client.Dispose();
+                httpClient.Dispose();
+            }
+        }
+
+        /// <summary>
+        ///Custom HTTP message handler that uses OAuth authentication thru ADAL.
+        /// </summary>
+       private class OAuthMessageHandler : DelegatingHandler
+        {
+            private readonly AuthenticationContext _authContext = new AuthenticationContext("https://login.microsoftonline.com/common", false);
+            private readonly UserPasswordCredential _credential;
+            private readonly string _redirectUrl;
+            private readonly string _clientId;
+            private readonly string _serviceUrl;
+
+            public OAuthMessageHandler(string serviceUrl, string clientId, string redirectUrl, string username, string password,
+                    HttpMessageHandler innerHandler)
+                : base(innerHandler)
+            {
+                if (username != string.Empty && password != string.Empty)
+                {
+                    _credential = new UserPasswordCredential(username, password);
+                }
+                _serviceUrl = serviceUrl;
+                _clientId = clientId;
+                _redirectUrl = redirectUrl;
+
+            }
+
+            private AuthenticationHeaderValue GetAuthHeader()
+            {
+                AuthenticationResult authResult;
+                if (_credential == null)
+                {
+                    authResult = _authContext.AcquireTokenAsync(_serviceUrl, _clientId, new Uri(_redirectUrl), new PlatformParameters(PromptBehavior.Auto)).Result;
+                }
+                else
+                {
+                    authResult = _authContext.AcquireTokenAsync(_serviceUrl, _clientId, _credential).Result;
+                }
+                return new AuthenticationHeaderValue("Bearer", authResult.AccessToken);
+            }
+
+            protected override Task<HttpResponseMessage> SendAsync(
+                      HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                try
+                {
+                    request.Headers.Authorization = GetAuthHeader();
+                }
+                catch (Exception ex)
+                {
+
+                    throw ex;
+                }
+                return base.SendAsync(request, cancellationToken);
             }
         }
     }
 
     public class CDSWebApiException : Exception
     {
-
         public int ErrorCode { get; private set; }
         public int StatusCode { get; private set; }
         public string ReasonPhrase { get; private set; }
@@ -390,4 +428,5 @@ namespace WebAPISamplePrototype
         }
     }
 
+    
 }

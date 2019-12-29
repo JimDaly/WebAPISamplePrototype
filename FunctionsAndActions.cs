@@ -9,6 +9,8 @@ namespace WebAPISamplePrototype
     {
         public static void Run(CDSWebApiService svc)
         {
+            Console.WriteLine("\n--Starting Functions And Actions--");
+
             //Create records required for this sample
             CreateRequiredRecords(svc);
 
@@ -162,10 +164,14 @@ namespace WebAPISamplePrototype
             }
 
             #endregion Call an unbound custom action that requires parameters.
+            Console.WriteLine("Uninstalling solution containing custom actions.");
             UnInstallFunctionsAndActionsSolution(svc);
 
             //Delete records used by this sample
+            Console.WriteLine("Deleting records created for this sample.");
             DeleteRequiredRecords(svc);
+
+            Console.WriteLine("\n--Functions And Actions Completed--");
         }
     }
 }

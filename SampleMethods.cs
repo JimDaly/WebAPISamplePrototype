@@ -3,18 +3,29 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace WebAPISamplePrototype
 {
-    public partial class SampleProgram {
-        public static string GetParameterValueFromConnectionString(string connectionString, string parameter)
+    public partial class SampleProgram
+    {
+        public static string GetParameterValueFromConnectionString(
+            string connectionString,
+            string parameter)
         {
             try
             {
-                return connectionString.Split(';').Where(s => s.Trim().StartsWith(parameter)).FirstOrDefault().Split('=')[1];
+                string value = connectionString
+                    .Split(';')
+                    .Where(s => s.Trim()
+                    .StartsWith(parameter)).
+                    FirstOrDefault()
+                    .Split('=')[1];
+                if (value.ToLower() == "null")
+                {
+                    return string.Empty;
+                }
+                return value;
             }
             catch (Exception)
             {
@@ -184,9 +195,9 @@ namespace WebAPISamplePrototype
         const int col2 = -35;
         const int col3 = -15;
 
-        //centralized collection of absolute URIs for created entity instances
-        private static List<Uri> entityUris = new List<Uri>();
-        private static bool prompt = true;
+        //Centralized collection of absolute URIs for created entity instances
+        private static readonly List<Uri> entityUris = new List<Uri>();
+        private static readonly bool prompt = true;
 
         static Uri account1Uri, contact1Uri;
 
@@ -380,63 +391,54 @@ namespace WebAPISamplePrototype
                     "contact and 8 associated contacts.");
         }
 
-        private static void DeleteRequiredRecords(CDSWebApiService svc, bool prompt)
+        private static void DeleteRequiredRecords(CDSWebApiService svc, bool deleteCreatedRecords)
         {
             List<Uri> tryAgainEntities = new List<Uri>();
 
-            if (prompt)
+            if (!deleteCreatedRecords)
             {
                 Console.Write("\nDo you want these sample entity records deleted? (y/n) [y]: ");
                 string answer = Console.ReadLine();
                 answer = answer.Trim();
-                if (!(answer.StartsWith("y") || answer.StartsWith("Y") || answer == String.Empty))
+                if (!(answer.StartsWith("y") || answer.StartsWith("Y") || answer == string.Empty))
                 {
-
-                    Console.WriteLine("\nDeleting data created for this sample...");
-
-                    entityUris.ForEach(x =>
-                    {
-                        Thread.Sleep(100); //Slow things down a bit
-                        try
-                        {
-                            svc.Delete(x);
-                        }
-                        catch (Exception)
-                        {
-
-                            tryAgainEntities.Add(x);
-                        }
-
-                    });
-
-                    tryAgainEntities.ForEach(x =>
-                    {
-                        try
-                        {
-                            svc.Delete(x);
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Could not delete entity at {x}");
-                            Console.ForegroundColor = ConsoleColor.Red;
-                            Console.WriteLine($"Unexpected Error: {ex.Message}");
-                            Console.ResetColor();
-                        }
-
-                    });
-                    Console.WriteLine("\nData created for this sample deleted.");
-
+                    return;
                 }
-
             }
 
+            Console.WriteLine("\nDeleting data created for this sample...");
 
+            entityUris.ForEach(x =>
+            {
+                Thread.Sleep(100); //Slow things down a bit
+                try
+                {
+                    svc.Delete(x);
+                }
+                catch (Exception)
+                {
 
+                    tryAgainEntities.Add(x);
+                }
 
+            });
 
+            tryAgainEntities.ForEach(x =>
+            {
+                try
+                {
+                    svc.Delete(x);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Could not delete entity at {x}");
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"Unexpected Error: {ex.Message}");
+                    Console.ResetColor();
+                }
 
-
-
+            });
+            Console.WriteLine("\nData created for this sample deleted.");
         }
 
         private static void WriteContactResultsTable(string message, JToken collection)
@@ -478,8 +480,8 @@ namespace WebAPISamplePrototype
                     string propValue;
                     string formattedProp = prop + "@OData.Community.Display.V1.FormattedValue";
                     if (null != entity[formattedProp])
-                    { 
-                        propValue = entity[formattedProp].ToString(); 
+                    {
+                        propValue = entity[formattedProp].ToString();
                     }
                     else
                     {
@@ -487,11 +489,12 @@ namespace WebAPISamplePrototype
                         {
                             propValue = entity[prop].ToString();
                         }
-                        else {
-                            
+                        else
+                        {
+
                             propValue = "NULL";
                         }
-                         
+
                     }
                     propsOutput.Add(propValue);
                 }
@@ -500,7 +503,7 @@ namespace WebAPISamplePrototype
             Console.Write("\n");
         }
 
-        
+
     }
 }
 
