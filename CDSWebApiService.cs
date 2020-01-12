@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -13,71 +14,32 @@ namespace WebAPISamplePrototype
 {
     public class CDSWebApiService : IDisposable
     {
-        private HttpClient httpClient;
-        private readonly string url;
-        private readonly string clientId;
-        private readonly string redirectUrl;
-        private readonly string userPrincipalName;
-        private readonly string password;
-        private readonly string callerObjectId;
-        private readonly string version;
-        private readonly int maxRetries;
-        private readonly double timeoutInSeconds;
+        private readonly HttpClient httpClient;
+        private readonly CDSWebApiServiceConfig config;
         /// <summary>
         /// The BaseAddresss property of the HttpClient.
         /// </summary>
         public Uri BaseAddress { get { return httpClient.BaseAddress; } }
-        /// <summary>
-        /// Constructor for the CDSWebApiService
-        /// </summary>
-        /// <param name="url">The URL for the CDS instance</param>
-        /// <param name="clientId">The clientId for Active Directory registered application.</param>
-        /// <param name="redirectUrl">The redirectUrl for Active Directory registered application.</param>
-        /// <param name="userPrincipalName">(Optional) The User Principal Name of the user.</param>
-        /// <param name="password">(Optional) The user's password.</param>
-        /// <param name="callerObjectId">(Optional) The Active Directory ObjectId of the of the calling user who will act on behalf of the user.</param>
-        /// <param name="version">(Optional) The CDS Web API version. Defaults to 9.1. </param>
-        /// <param name="maxRetries">(Optional) The number of retry attempts for re-tryable errors. Defaults to 3.</param>
-        /// <param name="timeoutInSeconds">(Optional) The period where a non-reponsive HTTP request will be cancelled. Defaults to 180.</param>
-        public CDSWebApiService(string url, 
-            string clientId, 
-            string redirectUrl, 
-            string userPrincipalName = null, 
-            string password = null, 
-            string callerObjectId = null, 
-            string version = "9.1",
-            int maxRetries = 3,
-            double timeoutInSeconds = 180)
-        {
-            this.url = url;
-            this.clientId = clientId;
-            this.redirectUrl = redirectUrl;
-            this.userPrincipalName = userPrincipalName;
-            this.password = password;
-            this.callerObjectId = callerObjectId;
-            this.version = version;
-            this.maxRetries = maxRetries;
-            this.timeoutInSeconds = timeoutInSeconds;
-            Init();
-        }
 
-        private void Init()
-        {
-            HttpMessageHandler messageHandler = new OAuthMessageHandler(url, clientId, redirectUrl, userPrincipalName, password,
-                           new HttpClientHandler());
+        
+        
+        public CDSWebApiService(CDSWebApiServiceConfig config) {
+            this.config = config;
+            HttpMessageHandler messageHandler = new OAuthMessageHandler(config,
+                new HttpClientHandler());
             httpClient = new HttpClient(messageHandler)
             {
-                BaseAddress = new Uri(url + $"/api/data/v{version}/")
+                BaseAddress = new Uri(config.Url + $"/api/data/v{config.Version}/")
             };
 
-            httpClient.Timeout = TimeSpan.FromSeconds(timeoutInSeconds);
+            httpClient.Timeout = TimeSpan.FromSeconds(config.TimeoutInSeconds);
             httpClient.DefaultRequestHeaders.Add("OData-MaxVersion", "4.0");
             httpClient.DefaultRequestHeaders.Add("OData-Version", "4.0");
             httpClient.DefaultRequestHeaders.Accept.Add(
                 new MediaTypeWithQualityHeaderValue("application/json"));
-            if (callerObjectId != string.Empty)
+            if (config.CallerObjectId != Guid.Empty)
             {
-                httpClient.DefaultRequestHeaders.Add("CallerObjectId", callerObjectId);
+                httpClient.DefaultRequestHeaders.Add("CallerObjectId", config.CallerObjectId.ToString());
             }
         }
 
@@ -244,9 +206,13 @@ namespace WebAPISamplePrototype
             }
         }
 
-        //All public methods use this private method;
-        //It includes re-try logic for Service Protection API limits
-
+        /// <summary>
+        /// Sends the Http Request
+        /// </summary>
+        /// <param name="request">The request to send</param>
+        /// <param name="httpCompletionOption">The completion option</param>
+        /// <param name="retryCount">The current retry count</param>
+        /// <returns></returns>
         private HttpResponseMessage Send(HttpRequestMessage request, HttpCompletionOption httpCompletionOption = HttpCompletionOption.ResponseHeadersRead, int retryCount = 0)
         {
             //Sending a copy of the request because if it fails the Content will be disposed and can't be sent again.
@@ -280,7 +246,7 @@ namespace WebAPISamplePrototype
                 else
                 {
                     // Give up re-trying if exceeding the maxRetries
-                    if (++retryCount >= maxRetries)
+                    if (++retryCount >= config.MaxRetries)
                     {
                         throw ParseError(response);
                     }
@@ -363,23 +329,21 @@ namespace WebAPISamplePrototype
         /// </summary>
        private class OAuthMessageHandler : DelegatingHandler
         {
-            private readonly AuthenticationContext _authContext = new AuthenticationContext("https://login.microsoftonline.com/common", false);
-            private readonly UserPasswordCredential _credential;
-            private readonly string _redirectUrl;
-            private readonly string _clientId;
-            private readonly string _serviceUrl;
+            private readonly CDSWebApiServiceConfig config;
+            private readonly UserPasswordCredential _credential = null;
+            private readonly AuthenticationContext _authContext;
 
-            public OAuthMessageHandler(string serviceUrl, string clientId, string redirectUrl, string username, string password,
+            public OAuthMessageHandler(CDSWebApiServiceConfig configParam,
                     HttpMessageHandler innerHandler)
                 : base(innerHandler)
             {
-                if (username != string.Empty && password != string.Empty)
+                config = configParam;
+
+                if (config.UserPrincipalName != null && config.Password != null)
                 {
-                    _credential = new UserPasswordCredential(username, password);
+                    _credential = new UserPasswordCredential(config.UserPrincipalName, config.Password);
                 }
-                _serviceUrl = serviceUrl;
-                _clientId = clientId;
-                _redirectUrl = redirectUrl;
+                _authContext = new AuthenticationContext(config.Authority, false);
 
             }
 
@@ -388,11 +352,11 @@ namespace WebAPISamplePrototype
                 AuthenticationResult authResult;
                 if (_credential == null)
                 {
-                    authResult = _authContext.AcquireTokenAsync(_serviceUrl, _clientId, new Uri(_redirectUrl), new PlatformParameters(PromptBehavior.Auto)).Result;
+                    authResult = _authContext.AcquireTokenAsync(config.Url, config.ClientId, new Uri(config.RedirectUrl), new PlatformParameters(PromptBehavior.Auto)).Result;
                 }
                 else
                 {
-                    authResult = _authContext.AcquireTokenAsync(_serviceUrl, _clientId, _credential).Result;
+                    authResult = _authContext.AcquireTokenAsync(config.Url, config.ClientId, _credential).Result;
                 }
                 return new AuthenticationHeaderValue("Bearer", authResult.AccessToken);
             }
@@ -428,5 +392,258 @@ namespace WebAPISamplePrototype
         }
     }
 
-    
+    public class CDSWebApiServiceConfig
+    {
+
+        private static string connectionString;
+        private string authority = "https://login.microsoftonline.com/common";
+        private string url = null;
+        private string clientId = null;
+        private string redirectUrl = null;
+
+        public CDSWebApiServiceConfig(string connectionStringParam)
+        {
+            connectionString = connectionStringParam;
+
+            string authorityValue = GetParameterValue("Authority");
+            if (!string.IsNullOrEmpty(authorityValue))
+            {
+                Authority = authorityValue;
+            }
+
+            Url = GetParameterValue("Url");
+            ClientId = GetParameterValue("ClientId");
+            RedirectUrl = GetParameterValue("RedirectUrl");
+
+            string userPrincipalNameValue = GetParameterValue("UserPrincipalName");
+            if (!string.IsNullOrEmpty(userPrincipalNameValue))
+            {
+                UserPrincipalName = userPrincipalNameValue;
+            }
+
+            if (Guid.TryParse(GetParameterValue("CallerObjectId"), out Guid callerObjectId))
+            {
+                CallerObjectId = callerObjectId;
+            }
+
+            string versionValue = GetParameterValue("Version");
+            if (!string.IsNullOrEmpty(versionValue))
+            {
+                Version = versionValue;
+            }
+
+            if (byte.TryParse(GetParameterValue("MaxRetries"), out byte maxRetries))
+            {
+                MaxRetries = maxRetries;
+            }
+
+            if (ushort.TryParse(GetParameterValue("TimeoutInSeconds"), out ushort timeoutInSeconds))
+            {
+                TimeoutInSeconds = timeoutInSeconds;
+            }
+
+
+            string pwd = GetParameterValue("Password");
+            if (!string.IsNullOrEmpty(pwd))
+            {
+                var ss = new SecureString();
+
+                pwd.ToCharArray().ToList().ForEach(ss.AppendChar);
+                ss.MakeReadOnly();
+
+                Password = ss;
+            }
+
+
+        }
+        /// <summary>
+        /// The authority to use to authorize user. 
+        /// Default is 'https://login.microsoftonline.com/common'
+        /// </summary>
+        public string Authority
+        {
+            get => authority; set
+            {
+                if (!string.IsNullOrEmpty(value))
+                {
+                    authority = value;
+                }
+                else
+                {
+                    throw new Exception("CDSWebApiServiceConfig.Authority value cannot be null.");
+                }
+            }
+        }
+        /// <summary>
+        /// The Url to the CDS environment, i.e "https://yourorg.api.crm.dynamics.com"
+        /// </summary>
+        public string Url
+        {
+            get => url; set
+
+            {
+                if (!string.IsNullOrEmpty(value))
+                {
+                    url = value;
+                }
+                else
+                {
+                    throw new Exception("CDSWebApiServiceConfig.Url value cannot be null.");
+                }
+            }
+        }
+        /// <summary>
+        /// The id of the application registered with Azure AD
+        /// </summary>
+        public string ClientId
+        {
+            get => clientId; set
+            {
+                if (!string.IsNullOrEmpty(value))
+                {
+                    clientId = value;
+                }
+                else
+                {
+                    throw new Exception("CDSWebApiServiceConfig.ClientId value cannot be null.");
+                }
+            }
+        }
+
+        /// <summary>
+        /// The Redirect Url of the application registered with Azure AD
+        /// </summary>
+        public string RedirectUrl { get => redirectUrl; set
+            {
+                if (!string.IsNullOrEmpty(value))
+                {
+                    redirectUrl = value;
+                }
+                else
+                {
+                    throw new Exception("CDSWebApiServiceConfig.RedirectUrl value cannot be null.");
+                }
+            }
+        }
+
+        /// <summary>
+        /// The user principal name of the user. i.e. you@yourorg.onmicrosoft.com
+        /// </summary>
+        public string UserPrincipalName { get; set; } = null;
+
+        /// <summary>
+        /// The password for the user principal
+        /// </summary>
+        public SecureString Password { get; set; } = null;
+
+        /// <summary>
+        /// The Azure AD ObjectId for the user to impersonate other users.
+        /// </summary>
+        public Guid CallerObjectId { get; set; }
+        /// <summary>
+        /// The version of the Web API to use
+        /// Default is '9.1'
+        /// </summary>
+        public string Version { get; set; } = "9.1";
+        /// <summary>
+        /// The maximum number of attempts to retry a request blocked by service protection limits.
+        /// Default is 3.
+        /// </summary>
+        public byte MaxRetries { get; set; } = 3;
+        /// <summary>
+        /// The amount of time to try completing a request before it will be cancelled.
+        /// Default is 120 (2 minutes)
+        /// </summary>
+        public ushort TimeoutInSeconds { get; set; } = 120;
+        
+        /// <summary>
+        /// Extracts a parameter value from a connection string
+        /// </summary>
+        /// <param name="parameter">The name of the parameter value</param>
+        /// <returns></returns>
+        private static string GetParameterValue(string parameter)
+        {
+            try
+            {
+                string value = connectionString
+                    .Split(';')
+                    .Where(s => s.Trim()
+                    .StartsWith(parameter))
+                    .FirstOrDefault()
+                    .Split('=')[1];
+                if (value.ToLower() == "null")
+                {
+                    return string.Empty;
+                }
+                return value;
+            }
+            catch (Exception)
+            {
+                return string.Empty;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Contains extension methods to clone HttpRequestMessage and HttpContent types.
+    /// </summary>
+    public static class Extensions
+    {
+
+        /// <summary>
+        /// Clones a HttpRequestMessage instance
+        /// </summary>
+        /// <param name="request">The HttpRequestMessage to clone.</param>
+        /// <returns>A copy of the HttpRequestMessage</returns>
+        public static HttpRequestMessage Clone(this HttpRequestMessage request)
+        {
+            var clone = new HttpRequestMessage(request.Method, request.RequestUri)
+            {
+                Content = request.Content.Clone(),
+                Version = request.Version
+            };
+            foreach (KeyValuePair<string, object> prop in request.Properties)
+            {
+                clone.Properties.Add(prop);
+            }
+            foreach (KeyValuePair<string, IEnumerable<string>> header in request.Headers)
+            {
+                clone.Headers.TryAddWithoutValidation(header.Key, header.Value);
+            }
+
+            return clone;
+        }
+        /// <summary>
+        /// Clones a HttpContent instance
+        /// </summary>
+        /// <param name="content">The HttpContent to clone</param>
+        /// <returns>A copy of the HttpContent</returns>
+        public static HttpContent Clone(this HttpContent content)
+        {
+
+            if (content == null) return null;
+
+            HttpContent clone;
+
+            Type contentType = content.GetType();
+
+            switch (contentType)
+            {
+                case Type _ when contentType == typeof(StringContent):
+                    clone = new StringContent(content.ReadAsStringAsync().Result);
+                    break;
+                //TODO: Add support for other content types as needed.
+                default:
+                    throw new Exception($"{content.GetType().ToString()} Content type not implemented for HttpContent.Clone extension method.");
+            }
+
+            clone.Headers.Clear();
+            foreach (KeyValuePair<string, IEnumerable<string>> header in content.Headers)
+            {
+                clone.Headers.Add(header.Key, header.Value);
+            }
+            return clone;
+
+        }
+    }
 }
