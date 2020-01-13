@@ -89,7 +89,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BatchTypes\BatchTypes.cs" />
     <Compile Include="Samples\BasicOperations.cs" />
+    <Compile Include="Samples\BatchOperations.cs" />
     <Compile Include="Samples\ConditionalOperations.cs" />
     <Compile Include="Samples\FunctionsAndActions.cs" />
     <Compile Include="Samples\QueryData.cs" />

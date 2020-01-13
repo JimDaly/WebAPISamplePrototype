@@ -2,11 +2,13 @@
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -21,9 +23,10 @@ namespace WebAPISamplePrototype
         /// </summary>
         public Uri BaseAddress { get { return httpClient.BaseAddress; } }
 
-        
-        
-        public CDSWebApiService(CDSWebApiServiceConfig config) {
+
+
+        public CDSWebApiService(CDSWebApiServiceConfig config)
+        {
             this.config = config;
             HttpMessageHandler messageHandler = new OAuthMessageHandler(config,
                 new HttpClientHandler());
@@ -207,6 +210,181 @@ namespace WebAPISamplePrototype
         }
 
         /// <summary>
+        /// Sends a set of requests in a batch
+        /// </summary>
+        /// <param name="items">The items for each request.</param>
+        /// <returns>Responses for each request</returns>
+        public List<HttpResponseMessage> PostBatch(List<BatchItem> items)
+        {
+            //A generated guid for the unique identifier for the batch
+            var batchId = Guid.NewGuid();
+            
+            //StringBuilder to create StringContent
+            var sb = new StringBuilder();
+            sb.AppendLine();
+
+            //Loop through the BatchItems
+            items.ForEach(x =>
+            {
+                //BatchChangeSet are treated differently from BatchGetRequests
+                switch (x)
+                {
+                    case BatchChangeSet c:
+                        sb.AppendLine($"--batch_{batchId}");
+                        sb.AppendLine($"Content-Type: multipart/mixed;boundary=changeset_{c.Id}");
+                        sb.AppendLine();
+                        var contentid = 0;
+                        //Add each of the individual requests in the changeset
+                        c.Requests.ForEach(y =>
+                        {                            
+                            sb.AppendLine($"--changeset_{c.Id}");
+                            sb.AppendLine("Content-Type: application/http");
+                            sb.AppendLine("Content-Transfer-Encoding:binary");
+                            sb.AppendLine($"Content-ID: {++contentid}");
+                            sb.AppendLine();
+                            sb.AppendLine($"{y.Method.ToString()} {y.RequestUri} HTTP/1.1");
+                            sb.AppendLine("Content-Type: application/json;type=entry");
+                            sb.AppendLine();
+                            sb.AppendLine(y.Content.ReadAsStringAsync().Result);
+                        });
+                        //End the changeset
+                        sb.AppendLine($"--changeset_{c.Id}--");
+                        sb.AppendLine();
+                        break;
+                    case BatchGetRequest g:
+                        sb.AppendLine($"--batch_{batchId}");
+                        sb.AppendLine("Content-Type: application/http");
+                        sb.AppendLine("Content-Transfer-Encoding:binary");
+                        sb.AppendLine();
+                        sb.AppendLine($"GET {g.Path} HTTP/1.1");
+                        sb.AppendLine("Accept:application/json");
+                        foreach (var header in g.Headers)
+                        {
+                            sb.AppendLine($"{header.Key}:{header.Value}");
+                        }
+                        break;
+                }
+            });
+            sb.AppendLine();
+            sb.AppendLine($"--batch_{batchId}--");
+
+            try
+            {
+                //A list of the responses that will be parsed from the Batch response
+                var responses = new List<HttpResponseMessage>();
+
+                using (var message = new HttpRequestMessage(HttpMethod.Post, "$batch"))
+                {
+                    //Add the generated string content to the messge content
+                    message.Content = new StringContent(sb.ToString());
+                    //Set the message header
+                    message.Content.Headers.ContentType = MediaTypeHeaderValue.Parse($"multipart/mixed;boundary=batch_{batchId}");
+
+                    //Send the request
+                    HttpResponseMessage response = Send(message);
+
+                    //Get the content of the response
+                    string body = response.Content.ReadAsStringAsync().Result;
+
+                    //Get the batch responseid from the first line
+                    string batchResponseId = new StringReader(body).ReadLine();
+                    //Split the content using the batchResponseId
+                    var batchResponses = body.Split(new string[] { batchResponseId }, StringSplitOptions.RemoveEmptyEntries).ToList();
+                    if (batchResponses.Any())
+                    {
+                        batchResponses.RemoveAt(batchResponses.Count - 1); //remove last row with "--";
+                    }
+
+                    batchResponses.ForEach(x =>
+                    {
+
+                        var changeSetBoundary = string.Empty;
+                        //Determine the changeset boundary
+                        foreach (var line in x.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries))
+                        {
+                            if (line.StartsWith("Content-Type: multipart/mixed; boundary=changesetresponse_"))
+                            {
+                                changeSetBoundary = line.Split('=')[1];
+                                break;
+                            }
+                        }
+                        if (changeSetBoundary != string.Empty)
+                        {
+                            //Split the content using the changeset boundary
+                            var changeSetText = x.Split(new string[] { $"--{changeSetBoundary}" }, StringSplitOptions.RemoveEmptyEntries).ToList();
+                            if (changeSetText.Any())
+                            {
+                                changeSetText.RemoveAt(changeSetText.Count - 1); //remove last row with "--";
+                                changeSetText.RemoveAt(0); //remove first row
+                            }
+
+                            changeSetText.ForEach(y =>
+                            {
+                                //Parse the responses for each changeset
+                                responses.Add(ParseResponse(y));
+                            });
+                        }
+                        else
+                        {
+                            //Parse the responses for each GET response
+                            responses.Add(ParseResponse(x));
+                        }
+                    });
+                    return responses;
+                }
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Generates a Response from the text returned by a batch item.
+        /// </summary>
+        /// <param name="responseText"></param>
+        /// <returns></returns>
+        private HttpResponseMessage ParseResponse(string responseText)
+        {
+            var response = new HttpResponseMessage();
+            //Parse each line in the text and extract useful information
+            //Not all elements are parsed. Some new ones may need to be added for different use cases.
+            foreach (var line in responseText.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (!string.IsNullOrEmpty(line))
+                {
+                    //Get the StatusCode value
+                    if (line.StartsWith("HTTP/1.1 "))
+                    {
+                        int start = "HTTP/1.1 ".Length;
+                        var statusCode = int.Parse(line.Substring(start, 3));
+                        response.StatusCode = (HttpStatusCode)statusCode;
+                        
+                    }
+                    //Get the URL of any records created
+                    if (line.StartsWith("OData-EntityId: "))
+                    {
+                        int start = "OData-EntityId: ".Length;
+                        response.Headers.Add("OData-EntityId", line.Substring(start));
+                        
+                    }
+                    //Get the ETag value
+                    if (line.StartsWith("ETag: "))
+                    {
+                        int start = "ETag: ".Length;
+                        response.Headers.Add("ETag", line.Substring(start));
+                        
+                    }
+                    //Get the JSON content
+                    if (line.StartsWith("{")) {
+                        response.Content = new StringContent(line.Trim());                        
+                    }
+                }
+            }
+            return response;
+        }
+
+        /// <summary>
         /// Sends the Http Request
         /// </summary>
         /// <param name="request">The request to send</param>
@@ -227,7 +405,7 @@ namespace WebAPISamplePrototype
                 {
 
                     throw ex;
-                }                
+                }
             }
 
             if (!response.IsSuccessStatusCode)
@@ -327,7 +505,7 @@ namespace WebAPISamplePrototype
         /// <summary>
         ///Custom HTTP message handler that uses OAuth authentication thru ADAL.
         /// </summary>
-       private class OAuthMessageHandler : DelegatingHandler
+        private class OAuthMessageHandler : DelegatingHandler
         {
             private readonly CDSWebApiServiceConfig config;
             private readonly UserPasswordCredential _credential = null;
@@ -513,7 +691,9 @@ namespace WebAPISamplePrototype
         /// <summary>
         /// The Redirect Url of the application registered with Azure AD
         /// </summary>
-        public string RedirectUrl { get => redirectUrl; set
+        public string RedirectUrl
+        {
+            get => redirectUrl; set
             {
                 if (!string.IsNullOrEmpty(value))
                 {
@@ -555,7 +735,7 @@ namespace WebAPISamplePrototype
         /// Default is 120 (2 minutes)
         /// </summary>
         public ushort TimeoutInSeconds { get; set; } = 120;
-        
+
         /// <summary>
         /// Extracts a parameter value from a connection string
         /// </summary>
@@ -583,6 +763,8 @@ namespace WebAPISamplePrototype
             }
         }
     }
+
+
 
     /// <summary>
     /// Contains extension methods to clone HttpRequestMessage and HttpContent types.
@@ -625,12 +807,10 @@ namespace WebAPISamplePrototype
 
             HttpContent clone;
 
-            Type contentType = content.GetType();
-
-            switch (contentType)
+            switch (content)
             {
-                case Type _ when contentType == typeof(StringContent):
-                    clone = new StringContent(content.ReadAsStringAsync().Result);
+                case StringContent sc:
+                    clone = new StringContent(sc.ReadAsStringAsync().Result);
                     break;
                 //TODO: Add support for other content types as needed.
                 default:
@@ -642,6 +822,7 @@ namespace WebAPISamplePrototype
             {
                 clone.Headers.Add(header.Key, header.Value);
             }
+
             return clone;
 
         }

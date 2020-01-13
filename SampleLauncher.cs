@@ -17,10 +17,11 @@ namespace WebAPISamplePrototype
                 
                 using (CDSWebApiService svc = new CDSWebApiService(config))
                 {
-                    BasicOperations.Run(svc, true);
-                    ConditionalOperations.Run(svc);
-                    FunctionsAndActions.Run(svc);
-                    QueryData.Run(svc, true);
+                    BatchOperations.Run(svc, true);
+                    //BasicOperations.Run(svc, true);
+                    //ConditionalOperations.Run(svc);
+                    //FunctionsAndActions.Run(svc);
+                    //QueryData.Run(svc, true);
                     // QueryExpressionQuery.Run(svc);
                     // ServiceProtectionLimitTest.Run(svc);
 
