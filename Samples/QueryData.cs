@@ -10,13 +10,19 @@ namespace WebAPISamplePrototype
     {
         //Centralized collection of absolute URIs for created entity instances
         private static readonly List<Uri> entityUris = new List<Uri>();
-        private static readonly bool prompt = true;
-
+        
+        //Uri for records referenced in this sample
         static Uri account1Uri, contact1Uri;
 
+        /// <summary>
+        /// Runs the sample
+        /// </summary>
+        /// <param name="svc">Service containing methods to use the Web API.</param>
+        /// <param name="deleteCreatedRecords">Whether to delete entities create by this sample.</param>
         public static void Run(CDSWebApiService svc, bool deleteCreatedRecords)
         {
             Console.WriteLine("\n--Starting Query Data --");
+            //Create the records that this sample will query.
             CreateRequiredRecords(svc);
 
             #region Selecting specific properties
@@ -25,13 +31,13 @@ namespace WebAPISamplePrototype
             Console.WriteLine("-- Basic Query --");
 
             //Header required to include formatted values
-            var headers = new Dictionary<string, List<string>> {
+            var formattedValueHeaders = new Dictionary<string, List<string>> {
                 { "Prefer", new List<string>
                     { "odata.include-annotations=\"OData.Community.Display.V1.FormattedValue\"" }
                 }
             };
 
-            var contact1 = svc.Get($"{contact1Uri}?$select=fullname,jobtitle,annualincome", headers);
+            var contact1 = svc.Get($"{contact1Uri}?$select=fullname,jobtitle,annualincome", formattedValueHeaders);
 
             Console.WriteLine($"Contact basic info:\n" +
                 $"\tFullname: {contact1["fullname"]}\n" +
@@ -57,7 +63,7 @@ namespace WebAPISamplePrototype
             //will query for all contacts with fullname containing the string "(sample)".
             var containsSampleinFullNameCollection = svc.Get("contacts?" +
                 "$select=fullname,jobtitle,annualincome&" +
-                "$filter=contains(fullname,'(sample)')", headers)["value"];
+                "$filter=contains(fullname,'(sample)')", formattedValueHeaders)["value"];
 
             WriteContactResultsTable(
                 "Contacts filtered by fullname containing '(sample)':",
@@ -70,7 +76,7 @@ namespace WebAPISamplePrototype
             var createdInLastHourCollection = svc.Get("contacts?" +
             "$select=fullname,jobtitle,annualincome&" +
             "$filter=Microsoft.Dynamics.CRM.LastXHours(PropertyName='createdon',PropertyValue='1')",
-            headers)["value"];
+            formattedValueHeaders)["value"];
 
             WriteContactResultsTable("Contacts that were created within the last 1hr:", createdInLastHourCollection);
 
@@ -82,7 +88,7 @@ namespace WebAPISamplePrototype
 
             var highIncomeContacts = svc.Get("contacts?" +
                 "$select=fullname,jobtitle,annualincome&" +
-                "$filter=contains(fullname,'(sample)') and annualincome gt 55000", headers)["value"];
+                "$filter=contains(fullname,'(sample)') and annualincome gt 55000", formattedValueHeaders)["value"];
 
             WriteContactResultsTable("Contacts with (sample) in name and income above $55,000:", highIncomeContacts);
 
@@ -95,7 +101,7 @@ namespace WebAPISamplePrototype
                 "$select=fullname,jobtitle,annualincome&" +
                 "$filter=contains(fullname,'(sample)') and " +
                 "(contains(jobtitle, 'senior') or " +
-                "contains(jobtitle,'specialist')) and annualincome gt 55000", headers)["value"];
+                "contains(jobtitle,'specialist')) and annualincome gt 55000", formattedValueHeaders)["value"];
 
             WriteContactResultsTable(
                 "Contacts with (sample) in name senior jobtitle or high income:",
@@ -110,7 +116,7 @@ namespace WebAPISamplePrototype
             var orderedResults = svc.Get("contacts?" +
                 "$select=fullname,jobtitle,annualincome&" +
                 "$filter=contains(fullname,'(sample)')&" +
-                "$orderby=jobtitle asc, annualincome desc", headers)["value"];
+                "$orderby=jobtitle asc, annualincome desc", formattedValueHeaders)["value"];
 
             WriteContactResultsTable(
                 "Contacts ordered by jobtitle (Ascending) and annualincome (descending)",
@@ -129,7 +135,7 @@ namespace WebAPISamplePrototype
                 "$orderby=@p2 asc, @p3 desc&" +
                 "@p1=fullname&" +
                 "@p2=jobtitle&" +
-                "@p3=annualincome", headers)["value"];
+                "@p3=annualincome", formattedValueHeaders)["value"];
 
             WriteContactResultsTable(
                 "Contacts ordered by jobtitle (Ascending) and annualincome (descending)",
@@ -148,7 +154,7 @@ namespace WebAPISamplePrototype
             var topFive = svc.Get("contacts?" +
                 "$select=fullname,jobtitle,annualincome&" +
                 "$filter=contains(fullname,'(sample)')&" +
-                "$top=5", headers)["value"];
+                "$top=5", formattedValueHeaders)["value"];
 
             WriteContactResultsTable("Contacts top 5 results:", topFive);
 
@@ -164,7 +170,7 @@ namespace WebAPISamplePrototype
             var countWithData = svc.Get("contacts?" +
                 "$select=fullname,jobtitle,annualincome&" +
                 "$filter=contains(jobtitle,'senior') or contains(jobtitle, 'manager')" +
-                "&$count=true", headers);
+                "&$count=true", formattedValueHeaders);
 
             WriteContactResultsTable($"{countWithData["@odata.count"]} " +
                 $"Contacts with 'senior' or 'manager' in job title:",
@@ -210,7 +216,7 @@ namespace WebAPISamplePrototype
 
             var account2 = svc.Get($"{account1Uri}?" +
                 $"$select=name&" +
-                $"$expand=contact_customer_accounts($select=fullname,jobtitle,annualincome)", headers);
+                $"$expand=contact_customer_accounts($select=fullname,jobtitle,annualincome)", formattedValueHeaders);
 
             WriteContactResultsTable(
                 $"Account '{account2["name"]}' has the following contact customers:",
@@ -224,7 +230,7 @@ namespace WebAPISamplePrototype
             var account3 = svc.Get($"{account1Uri}?$select=name&" +
                 $"$expand=primarycontactid($select=fullname,jobtitle,annualincome)," +
                 $"contact_customer_accounts($select=fullname,jobtitle,annualincome)," +
-                $"Account_Tasks($select=subject,description)", headers);
+                $"Account_Tasks($select=subject,description)", formattedValueHeaders);
 
             Console.WriteLine($"\nAccount {account3["name"]} has the following primary contact person:\n" +
                             $"\tFullname: {account3["primarycontactid"]["fullname"]} \n" +
@@ -261,7 +267,7 @@ namespace WebAPISamplePrototype
                     "</filter>" +
                   "</entity>" +
                 "</fetch>";
-            var contacts = svc.Get($"contacts?fetchXml={WebUtility.UrlEncode(fetchXmlQuery)}", headers);
+            var contacts = svc.Get($"contacts?fetchXml={WebUtility.UrlEncode(fetchXmlQuery)}", formattedValueHeaders);
 
             WriteContactResultsTable($"Contacts Fetched by fullname containing '(sample)':", contacts["value"]);
 
@@ -281,7 +287,7 @@ namespace WebAPISamplePrototype
                 "$select=name,savedqueryid&" +
                 "$filter=name eq 'Active Accounts'")["value"][0]["savedqueryid"];
 
-            var activeAccounts = svc.Get($"accounts?savedQuery={savedqueryid}", headers)["value"] as JArray;
+            var activeAccounts = svc.Get($"accounts?savedQuery={savedqueryid}", formattedValueHeaders)["value"] as JArray;
 
             DisplayFormattedEntities("Active Accounts", activeAccounts, new string[] { "name" });
 
@@ -317,7 +323,7 @@ namespace WebAPISamplePrototype
             //Retrieve the userqueryid
             var myUserQueryId = svc.Get($"{myUserQueryUri}/userqueryid")["value"];
             //Use the query to return results:
-            var myUserQueryResults = svc.Get($"contacts?userQuery={myUserQueryId}",headers)["value"];
+            var myUserQueryResults = svc.Get($"contacts?userQuery={myUserQueryId}",formattedValueHeaders)["value"];
 
             WriteContactResultsTable($"Contacts Fetched by My User Query:", myUserQueryResults);
 
