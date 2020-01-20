@@ -21,9 +21,9 @@ namespace WebAPISamplePrototype
                     //BasicOperations.Run(svc, true);
                     //ConditionalOperations.Run(svc);
                     //FunctionsAndActions.Run(svc);
-                    //QueryData.Run(svc, true);
+                    QueryData.Run(svc, true);
                     //BatchOperations.Run(svc, true);
-                    QueryExpressionQuery.Run(svc,true);
+                    //QueryExpressionQuery.Run(svc,true);
                     // ServiceProtectionLimitTest.Run(svc);
 
                 }

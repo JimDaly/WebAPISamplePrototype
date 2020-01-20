@@ -33,6 +33,7 @@ namespace WebAPISamplePrototype
              - Page results with a cookie?
              - Use a left outer join in QueryExpression to query for records "not in" https://docs.microsoft.com/en-us/powerapps/developer/common-data-service/org-service/use-left-outer-join-queryexpression-query-records-not-in
              - Show how to use aggregates and grouping
+             - Send as $batch
             */
 
             Console.WriteLine("\n--Starting Query Data with Query Expression--");
