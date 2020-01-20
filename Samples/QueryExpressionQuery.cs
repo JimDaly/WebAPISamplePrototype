@@ -5,6 +5,7 @@ using System;
 using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using System.Threading;
+using System.Net;
 
 namespace WebAPISamplePrototype
 {
@@ -19,18 +20,6 @@ namespace WebAPISamplePrototype
         public static void Run(CDSWebApiService svc, bool deleteCreatedRecords)
         {
 
-            //  var qe = new QueryExpression("account")
-            //  {
-
-            //      ColumnSet = new ColumnSet("name"),
-            //      PageInfo = new PagingInfo { Count = 3, PageNumber = 1 },
-            //      Criteria = new FilterExpression(LogicalOperator.And)
-
-            //  };
-            //  qe.Criteria.AddCondition("name", ConditionOperator.BeginsWith, "Contoso");
-
-
-            //var results =  svc.Get($"accounts?queryExpression={qe.ToJSON()}");
 
             /*
             Sample Goals
@@ -75,7 +64,8 @@ namespace WebAPISamplePrototype
             var query1Results = svc.Get(
                 $"contacts?queryExpression={query1.ToJSON()}",
                 formattedValueHeaders);
-
+            
+            //Output results in formatted table
             WriteContactResultsTable(
                 $"{((JContainer)query1Results["value"]).Count} Contacts related to the account '{account1Name}'",
                 query1Results["value"]);
@@ -83,11 +73,11 @@ namespace WebAPISamplePrototype
             #endregion Use ColumnSet to specify attributes
 
             #region Use PagingInfo
-            //Re-use the previously defined query
-            query1.PageInfo = new PagingInfo() 
-            { 
-                PageNumber = 1, 
-                Count = 4, 
+            //Re-use the previously defined query1
+            query1.PageInfo = new PagingInfo()
+            {
+                PageNumber = 1,
+                Count = 4,
                 ReturnTotalRecordCount = true
                 //Bug 1686048: Unable to return count when using QueryExpression with Web API
             };
@@ -96,6 +86,7 @@ namespace WebAPISamplePrototype
                 $"contacts?queryExpression={query1.ToJSON()}",
                 formattedValueHeaders);
 
+            //Output results in formatted table
             WriteContactResultsTable(
                 $"Top 4 Contacts related to the account '{account1Name}'",
                 top4contactsRelatedToAccount1["value"]);
@@ -115,6 +106,7 @@ namespace WebAPISamplePrototype
                 $"contacts?queryExpression={query1.ToJSON()}",
                 formattedValueHeaders);
 
+            //Output results in formatted table
             WriteContactResultsTable(
                 $"Next 4 Contacts related to the account '{account1Name}'",
                 next4contactsRelatedToAccount1["value"]);
@@ -138,11 +130,10 @@ namespace WebAPISamplePrototype
                 $"contacts?queryExpression={query2.ToJSON()}",
                 formattedValueHeaders);
 
+            //Output results in formatted table
             WriteContactResultsTable(
                 $"Contacts created in the past hour related to '{account1Name}'",
                 contactsRelatedToAccount1CreatedInLastHour["value"]);
-
-
 
 
             var query3 = new QueryExpression("contact")
@@ -161,21 +152,118 @@ namespace WebAPISamplePrototype
                 $"contacts?queryExpression={query3.ToJSON()}",
                 formattedValueHeaders);
 
+            //Output results in formatted table
             WriteContactResultsTable(
                 $"High salary contacts with 'senior' or 'manager' in job title:",
                 highValueContacts["value"]);
 
-            /*
-                 var seniorOrSpecialistsCollection = svc.Get("contacts?" +
-                "$select=fullname,jobtitle,annualincome&" +
-                "$filter=contains(fullname,'(sample)') and " +
-                "(contains(jobtitle, 'senior') or " +
-                "contains(jobtitle,'specialist')) and annualincome gt 55000", formattedValueHeaders)["value"]; 
-            */
 
             #endregion Apply multiple conditions in a Filter Expression
 
+            #region Link Entities
 
+            var query4 = new QueryExpression("task")
+            {
+                ColumnSet = new ColumnSet("subject", "description"),
+                LinkEntities = {
+                    new LinkEntity(){
+                    Columns = new ColumnSet("fullname"),
+                    EntityAlias = "c",
+                    LinkFromAttributeName = "regardingobjectid",
+                    LinkFromEntityName = "task",
+                    LinkToAttributeName = "contactid",
+                    LinkToEntityName = "contact",
+                        LinkCriteria = new FilterExpression(){
+                            Conditions = {
+                            new ConditionExpression("parentcustomerid", ConditionOperator.Equal, account1Id)
+                            }
+                        }
+                    }
+                }
+            };
+
+            var tasksLinkedToContact = svc.Get(
+                $"tasks?queryExpression={query4.ToJSON()}",
+                formattedValueHeaders);
+
+            //Output results in formatted table
+            //Bug 1686153: Web API QueryExpression Link Entity response alias separator is '_x002e_' rather than '.'
+            WriteTaskResultsTable("Tasks with linked Contacts", tasksLinkedToContact["value"], "c_x002e_fullname", "subject");
+
+            var query4UsingFetchXml = $@"<fetch>
+                <entity name='task' >
+                <attribute name='description' />
+                <attribute name='subject' />
+                <link-entity name='contact' from='contactid' to='regardingobjectid' alias='c' >
+                    <attribute name='fullname' />
+                    <filter>
+                    <condition attribute='parentcustomerid' operator='eq' value='{account1Id}' />
+                    </filter>
+                </link-entity>
+                </entity>
+            </fetch>";
+
+            var tasksLinkedToContactFetch = svc.Get(
+                $"tasks?fetchXml={WebUtility.UrlEncode(query4UsingFetchXml)}",
+                formattedValueHeaders);
+
+            //Output results in formatted table
+            WriteTaskResultsTable(
+                "Tasks with linked Contacts using FetchXMl",
+                tasksLinkedToContactFetch["value"], "c.fullname", "subject");
+
+            #endregion Link Entities
+
+            #region Apply Aggregation and grouping
+
+            #region Aggregate income data
+            string avg_income_alias = "avg_income";
+            string sum_income_alias = "sum_income";
+            string max_income_alias = "max_income";
+            string min_income_alias = "min_income";
+
+            var query5 = new QueryExpression("contact")
+            {
+
+                ColumnSet = new ColumnSet("annualincome")
+                {
+                    AttributeExpressions = {
+                        new XrmAttributeExpression("annualincome", XrmAggregateType.Avg, avg_income_alias),
+                        new XrmAttributeExpression("annualincome", XrmAggregateType.Sum, sum_income_alias),
+                        new XrmAttributeExpression("annualincome", XrmAggregateType.Max, max_income_alias),
+                        new XrmAttributeExpression("annualincome", XrmAggregateType.Min, min_income_alias)
+                    }
+                }
+            };
+            query5.Criteria.AddCondition("parentcustomerid", ConditionOperator.Equal, account1Id);
+
+            var avgIncome = svc.Get(
+                $"contacts?queryExpression={query5.ToJSON()}",
+                formattedValueHeaders);
+
+            var data = avgIncome["value"][0];
+
+            string formattedSumIncome = (string)data
+                [$"{sum_income_alias}@OData.Community.Display.V1.FormattedValue"];
+            string formattedAvgIncome = (string)data
+                [$"{avg_income_alias}@OData.Community.Display.V1.FormattedValue"];
+            string formattedMaxIncome = (string)data
+                [$"{max_income_alias}@OData.Community.Display.V1.FormattedValue"];
+            string formattedMinIncome = (string)data
+                [$"{min_income_alias}@OData.Community.Display.V1.FormattedValue"];
+
+
+            Console.WriteLine($"\nIncome information for employees at'{account1Name}':");
+            Console.WriteLine($"\tSum:\t{formattedSumIncome} ");
+            Console.WriteLine($"\tAverage:{formattedAvgIncome} ");
+            Console.WriteLine($"\tMax:\t{formattedMaxIncome} ");
+            Console.WriteLine($"\tMin:\t{formattedMinIncome} ");
+            #endregion Aggregate income data
+
+
+
+
+            #endregion Apply Aggregation and grouping
 
             DeleteRequiredRecords(svc, deleteCreatedRecords);
 
@@ -427,6 +515,27 @@ namespace WebAPISamplePrototype
                     $"{contact["annualincome@OData.Community.Display.V1.FormattedValue"],col3}");
             }
 
+        }
+
+        private static void WriteTaskResultsTable(string message, JToken collection, params string[] columnNames) {
+            //Defines column widths to output table
+            const int col1 = -27;
+            const int col2 = -35;
+
+            //Show the results in a formatted table:
+            Console.WriteLine($"\n{message}");
+            //header
+            Console.WriteLine($"\t|{"Full Name",col1}|" +
+                $"{"Subject",col2}|");
+            Console.WriteLine($"\t|{new string('-', col1 * -1),col1}|" +
+                $"{new string('-', col2 * -1),col2}|");
+            //rows
+            foreach (JObject task in collection)
+            {
+                //Bug 1686153: Web API QueryExpression Link Entity response alias separator is '_x002e_' rather than '.'
+                Console.WriteLine($"\t|{task[columnNames[0]],col1}|" +
+                    $"{task[columnNames[1]],col2}|");
+            }
         }
     }
 }
