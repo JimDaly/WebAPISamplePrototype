@@ -99,6 +99,11 @@ namespace WebAPISamplePrototype.QueryExpressionTypes
             return link;
         }
 
+        public string ToJSON() { 
+        
+            return JsonConvert.SerializeObject(this);
+        }
+
         private DataCollection<LinkEntity> _linkEntities;
         private DataCollection<OrderExpression> _orders;
     }

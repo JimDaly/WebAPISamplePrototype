@@ -391,7 +391,10 @@ namespace WebAPISamplePrototype
         /// <param name="httpCompletionOption">The completion option</param>
         /// <param name="retryCount">The current retry count</param>
         /// <returns></returns>
-        private HttpResponseMessage Send(HttpRequestMessage request, HttpCompletionOption httpCompletionOption = HttpCompletionOption.ResponseHeadersRead, int retryCount = 0)
+        private HttpResponseMessage Send(
+            HttpRequestMessage request, 
+            HttpCompletionOption httpCompletionOption = HttpCompletionOption.ResponseHeadersRead, 
+            int retryCount = 0)
         {
             //Sending a copy of the request because if it fails the Content will be disposed and can't be sent again.
             HttpResponseMessage response;
@@ -430,6 +433,7 @@ namespace WebAPISamplePrototype
                     }
 
                     int seconds;
+                    //Try to use the Retry-After header value if it is returned.
                     if (response.Headers.Contains("Retry-After"))
                     {
                         seconds = int.Parse(response.Headers.GetValues("Retry-After").FirstOrDefault());
@@ -437,6 +441,7 @@ namespace WebAPISamplePrototype
                     }
                     else
                     {
+                        //Otherwise, use an exponential backoff strategy
                         seconds = (int)Math.Pow(2, retryCount);
                         Console.WriteLine($"Waiting for: {seconds} seconds based on exponential backoff.");
                     }
