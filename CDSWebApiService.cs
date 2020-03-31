@@ -60,8 +60,9 @@ namespace WebAPISamplePrototype
                 {
                     message.Content = new StringContent(body.ToString());
                     message.Content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/json");
-                    HttpResponseMessage response = Send(message);
-                    return new Uri(response.Headers.GetValues("OData-EntityId").FirstOrDefault());
+                    using (HttpResponseMessage response = Send(message)) {
+                        return new Uri(response.Headers.GetValues("OData-EntityId").FirstOrDefault());
+                    }                                           
                 }
             }
             catch (Exception ex)
@@ -83,13 +84,15 @@ namespace WebAPISamplePrototype
                 {
                     message.Content = new StringContent(body.ToString());
                     message.Content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/json");
-                    HttpResponseMessage response = Send(message);
-                    string content = response.Content.ReadAsStringAsync().Result;
-                    if (string.IsNullOrEmpty(content))
-                    {
-                        return null;
+                    using (HttpResponseMessage response = Send(message)) {
+                        string content = response.Content.ReadAsStringAsync().Result;
+                        if (string.IsNullOrEmpty(content))
+                        {
+                            return null;
+                        }
+                        return JObject.Parse(content);
                     }
-                    return JObject.Parse(content);
+                        
                 }
             }
             catch (Exception)
@@ -118,13 +121,15 @@ namespace WebAPISamplePrototype
                         }
                     }
 
-                    HttpResponseMessage response = Send(message, HttpCompletionOption.ResponseContentRead);
-
-                    if (response.StatusCode != HttpStatusCode.NotModified)
-                    {
-                        return JToken.Parse(response.Content.ReadAsStringAsync().Result);
+                    using (HttpResponseMessage response = Send(message, HttpCompletionOption.ResponseContentRead)) {
+                        if (response.StatusCode != HttpStatusCode.NotModified)
+                        {
+                            return JToken.Parse(response.Content.ReadAsStringAsync().Result);
+                        }
+                        return null;
                     }
-                    return null;
+
+                        
                 }
             }
             catch (Exception)
@@ -151,7 +156,7 @@ namespace WebAPISamplePrototype
                         message.Headers.Add(header.Key, header.Value);
                     }
                 }
-                Send(message);
+                Send(message).Dispose();
             }
         }
 
@@ -173,7 +178,7 @@ namespace WebAPISamplePrototype
                         }
                     }
 
-                    Send(message, HttpCompletionOption.ResponseHeadersRead);
+                    Send(message, HttpCompletionOption.ResponseHeadersRead).Dispose();
                 }
             }
             catch (Exception)
@@ -200,7 +205,7 @@ namespace WebAPISamplePrototype
                     };
                     message.Content = new StringContent(body.ToString());
                     message.Content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/json");
-                    Send(message, HttpCompletionOption.ResponseHeadersRead);
+                    Send(message, HttpCompletionOption.ResponseHeadersRead).Dispose();
                 }
             }
             catch (Exception)
@@ -281,10 +286,10 @@ namespace WebAPISamplePrototype
                     message.Content.Headers.ContentType = MediaTypeHeaderValue.Parse($"multipart/mixed;boundary=batch_{batchId}");
 
                     //Send the request
-                    HttpResponseMessage response = Send(message);
+                    using (HttpResponseMessage response = Send(message)) { 
 
-                    //Get the content of the response
-                    string body = response.Content.ReadAsStringAsync().Result;
+                        //Get the content of the response
+                        string body = response.Content.ReadAsStringAsync().Result;
 
                     //Get the batch responseid from the first line
                     string batchResponseId = new StringReader(body).ReadLine();
@@ -331,6 +336,7 @@ namespace WebAPISamplePrototype
                         }
                     });
                     return responses;
+                    }
                 }
             }
             catch (Exception)
@@ -768,7 +774,6 @@ namespace WebAPISamplePrototype
             }
         }
     }
-
 
 
     /// <summary>
