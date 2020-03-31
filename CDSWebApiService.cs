@@ -776,7 +776,6 @@ namespace WebAPISamplePrototype
     }
 
 
-
     /// <summary>
     /// Contains extension methods to clone HttpRequestMessage and HttpContent types.
     /// </summary>
